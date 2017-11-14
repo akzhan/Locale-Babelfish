@@ -7,13 +7,11 @@ use strict;
 use warnings;
 
 use Exporter qw( import );
-use Locale::Babelfish::Phrase::Parser ();
-use Locale::Babelfish::Phrase::Compiler ();
+use Locale::Babelfish::Phrase::Pluralizer ();
+use Locale::Babelfish::Phrase::Parser     ();
+use Locale::Babelfish::Phrase::Compiler   ();
 
 our @EXPORT_OK = qw( &single_template &t_or_undef );
-
-my $parser   = Locale::Babelfish::Phrase::Parser->new();
-my $compiler = Locale::Babelfish::Phrase::Compiler->new();
 
 sub phrase_need_compilation {
     my ($phrase) = @_;
@@ -27,7 +25,10 @@ sub phrase_need_compilation {
 sub single_template {
     my ( $sentence, $locale ) = @_;
 
-    $sentence = $compiler->compile( $parser->parse( $sentence, $locale ) )
+    my $parser = Locale::Babelfish::Phrase::Parser->new( $sentence, $locale );
+    my $compiler = Locale::Babelfish::Phrase::Compiler->new();
+
+    $sentence = $compiler->compile( $parser->parse )
       if phrase_need_compilation($sentence);
 }
 
@@ -44,13 +45,6 @@ Get internationalized value for key from dictionary.
 
 sub t_or_undef {
     my ( $single_template, $params, $locale ) = @_;
-
-    if ( defined $single_template ) {
-        if ( ref($single_template) eq 'SCALAR' ) {
-            $single_template =
-              $compiler->compile( $parser->parse( $$single_template, $locale ), );
-        }
-    }
 
     if ( ref($single_template) eq 'CODE' ) {
         my $flat_params = {};
@@ -81,10 +75,11 @@ sub t_or_undef {
 
 sub _flat_hash_keys {
     my ( $hash, $prefix, $store ) = @_;
-    while ( my ($key, $value) = each(%$hash) ) {
-        if (ref($value) eq 'HASH') {
+    while ( my ( $key, $value ) = each(%$hash) ) {
+        if ( ref($value) eq 'HASH' ) {
             _flat_hash_keys( $value, "$prefix$key.", $store );
-        } else {
+        }
+        else {
             $store->{"$prefix$key"} = $value;
         }
     }
